@@ -7,8 +7,9 @@
 <section id="quick"><div class="card">
 <div class="section-kicker">01 · Tu asesor de vestuario</div>
 <h1>¿Mi conjunto combina?</h1>
-<p class="muted">Haz una foto de tu conjunto completo. Pulsa «Reconocer automáticamente» para localizar las prendas, o tócalas manualmente si lo prefieres.</p>
-<label for="quickInput" class="camera-label wide quick-camera" style="cursor:pointer">📷 Hacer foto de mi conjunto</label>
+<p class="muted">Empieza fotografiando la camiseta y después el pantalón. Cada foto quedará visible y asignada a su prenda. La foto de cuerpo entero es opcional.</p>
+<details style="margin:12px 0"><summary style="font-weight:700;cursor:pointer">Alternativa: una sola foto de cuerpo entero (experimental)</summary>
+<label for="quickInput" class="camera-label wide quick-camera" style="cursor:pointer">📷 Hacer foto del conjunto completo</label></details>
 <input id="quickInput" type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" aria-label="Fotografiar conjunto completo">
 <div class="hint-box">Para mejorar la precisión, usa luz natural, sin filtros y con las prendas visibles. El reconocimiento automático funciona mejor en fotos de cuerpo entero. Si falla, puedes tocar las prendas manualmente.</div>
 <button id="quickAuto" class="wide" type="button" disabled style="margin-top:12px">✨ Estimar prendas en foto de cuerpo entero</button>
@@ -27,12 +28,15 @@
 <input id="slotBottomInput" type="file" accept="image/*" capture="environment" hidden>
 <input id="slotShoesInput" type="file" accept="image/*" capture="environment" hidden>
 <div id="slotPreviews" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px"></div>
-<p id="slotStatus" class="tiny muted" role="status">Las fotos se procesan en el móvil y no se suben a XUA COLOR.</p>
+<p id="slotStatus" class="tiny muted" role="status">Para mejores resultados, coloca la prenda en el centro y evita fondos de colores. Las fotos se mantienen en esta pantalla mientras creas el conjunto. Al recargar la página se borran; el armario guarda los colores, no las fotografías.</p>
 </div>
 <div class="quick-steps" id="quickSteps">
-<div class="quick-step active" id="quickStep0">1. Parte de arriba<small>Toca la camiseta</small></div>
-<div class="quick-step" id="quickStep1">2. Parte de abajo<small>Toca el pantalón</small></div>
-<div class="quick-step" id="quickStep2">3. Calzado (opcional)<small>Toca los zapatos</small></div>
+<button type="button" class="quick-step active" id="quickStep0">1. Parte de arriba<small>📷 Hacer foto camiseta</small></button>
+<button type="button" class="quick-step" id="quickStep1">2. Parte de abajo<small>📷 Hacer foto pantalón</small></button>
+<button type="button" class="quick-step" id="quickStep2">3. Calzado (opcional)<small>📷 Hacer foto calzado</small></button>
+</div>
+<div id="quickWizardNext" style="display:none;margin:12px 0">
+<button id="quickNext" class="wide" type="button">📷 Continuar: fotografiar pantalón</button>
 </div>
 <div id="quickPreviewWrap"><img id="quickPreview" class="quick-photo" alt="Foto de tu conjunto. Toca las prendas para detectar sus colores."></div>
 <p id="quickStatus" class="status" role="status">Empieza haciendo una foto de tu conjunto.</p>
@@ -66,30 +70,27 @@
 <div class="footer">XUA COLOR · Prototipo gratuito · El resultado puede variar por iluminación, sombras y textura.</div></main><canvas id="canvas" hidden></canvas><script>
 'use strict';const $=id=>document.getElementById(id);let items=[];try{items=JSON.parse(localStorage.getItem('xua-color-items')||'[]');if(!Array.isArray(items))items=[]}catch{items=[]}let current=null;const photo=$('photo'),preview=$('preview'),canvas=$('canvas');function persist(){try{localStorage.setItem('xua-color-items',JSON.stringify(items))}catch{alert('No se ha podido guardar en este navegador.')}}function rgbToHsl(r,g,b){r/=255;g/=255;b/=255;let max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,h=0,s=0,l=(max+min)/2;if(d){s=d/(1-Math.abs(2*l-1));switch(max){case r:h=((g-b)/d)%6;break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h=(h*60+360)%360}return{h,s,l}}function classify(r,g,b){
   const {h,s,l}=rgbToHsl(r,g,b);
-  const max=Math.max(r,g,b),min=Math.min(r,g,b);
-  const chroma=max-min;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),chroma=max-min;
+  const brightness=(.2126*r+.7152*g+.0722*b)/255;
+  const blueBias=b-Math.max(r,g),blueVsRed=b-r;
   let name;
-  if(l<.095)name='Negro';
-  else if(l>.93&&s<.14)name='Blanco';
-  else if(s<.105||chroma<14)name=l<.34?'Gris oscuro':l>.72?'Gris claro':'Gris';
-  else if(h<13||h>=347)name='Rojo';
-  else if(h<19)name='Rojo';
-  else if(h<45){
-    if(l>.78&&s<.36)name='Crema';
-    else if(l>.56&&s<.48)name='Beige';
-    else if(l<.59&&s<.72)name='Marrón';
-    else name='Naranja';
-  }
-  else if(h<67)name=(l>.79&&s<.38)?'Crema':'Amarillo';
-  else if(h<167)name=(h<113&&l<.46&&s<.56)?'Verde oliva':'Verde';
+  // Whites can photograph at 205–245 due to camera exposure. Pale blue has
+  // a small but consistent B > R difference even when HSL saturation is low.
+  if(brightness<.115)name='Negro';
+  else if(h>=185&&h<260&&(chroma>=9||blueVsRed>=9))name=l>.63?'Celeste':l<.29?'Azul marino':'Azul';
+  else if(brightness>.82&&chroma<23)name='Blanco';
+  else if(brightness>.73&&chroma<12)name='Blanco';
+  else if(chroma<11||s<.065)name=brightness>.70?'Gris claro':brightness<.32?'Gris oscuro':'Gris';
+  else if(h<19||h>=347)name='Rojo';
+  else if(h<45)name=l>.78&&s<.36?'Crema':l>.56&&s<.48?'Beige':l<.59&&s<.72?'Marrón':'Naranja';
+  else if(h<67)name=l>.79&&s<.38?'Crema':'Amarillo';
+  else if(h<167)name=h<113&&l<.46&&s<.56?'Verde oliva':'Verde';
   else if(h<195)name='Turquesa';
-  else if(h<260)name=(l<.31?'Azul marino':l>.73&&s>.22?'Celeste':'Azul');
+  else if(h<260)name=l<.31?'Azul marino':l>.63?'Celeste':'Azul';
   else if(h<291)name='Morado';
   else if(h<347)name='Rosa';
   else name='Rojo';
-  // Brown is a dark/or muted orange, not a general label for low brightness.
-  // Blue hue must never be reclassified as brown.
-  const tone=l<.34?'oscuro':l>.69?'claro':'medio';
+  const tone=brightness<.34?'oscuro':brightness>.68?'claro':'medio';
   return {name,tone,h,s,l,neutral:['Negro','Blanco','Gris','Gris oscuro','Gris claro','Beige','Crema','Azul marino','Marrón'].includes(name)};
 }
 function hex(r,g,b){return'#'+[r,g,b].map(n=>Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0')).join('')}
@@ -246,6 +247,23 @@ function quickShow(refreshEditors=true){
 
 // Separate garment photos. Each input is bound to an explicit clothing role.
 const slotPhotos=[null,null,null];
+['quickStep0','quickStep1','quickStep2'].forEach((id,i)=>{
+  $(id).addEventListener('click',()=>{
+    $('slotStatus').textContent='Haz una foto de '+['la parte de arriba','la parte de abajo','los zapatos'][i]+'. Se mantendrán las anteriores.';
+    $([ 'slotTopInput','slotBottomInput','slotShoesInput' ][i]).click();
+  });
+});
+$('quickNext').addEventListener('click',()=>{
+  const next=slotPhotos[0]&&!slotPhotos[1]?1:slotPhotos[0]&&slotPhotos[1]&&!slotPhotos[2]?2:0;
+  $([ 'slotTopInput','slotBottomInput','slotShoesInput' ][next]).click();
+});
+function updateWizardNext(){
+  const hasTop=Boolean(slotPhotos[0]),hasBottom=Boolean(slotPhotos[1]);
+  const box=$('quickWizardNext'),button=$('quickNext');
+  box.style.display=hasTop?'block':'none';
+  button.textContent=!hasBottom?'📷 Continuar: fotografiar pantalón':'👟 Añadir foto de zapatos (opcional)';
+}
+
 const slotNames=['Parte de arriba','Pantalón','Calzado'];
 function renderSlotPreviews(){
   const holder=$('slotPreviews');holder.replaceChildren();
@@ -258,6 +276,11 @@ function renderSlotPreviews(){
       const img=document.createElement('img');img.src=slotPhotos[i].src;img.alt='Foto de '+slotNames[i];
       img.style.cssText='width:100%;height:110px;object-fit:contain;display:block;margin:5px 0';
       box.append(img);
+      const step=$('quickStep'+i);
+      let mini=step.querySelector('img');
+      if(!mini){mini=document.createElement('img');mini.style.cssText='width:100%;height:75px;object-fit:contain;margin-top:6px;border-radius:7px';step.append(mini)}
+      mini.src=slotPhotos[i].src;
+      step.setAttribute('aria-label',slotNames[i]+' fotografiada. Pulsa para repetir.');
       const c=document.createElement('div');c.textContent=slotPhotos[i].point.name+' · '+slotPhotos[i].point.tone;
       c.style.cssText='font-size:11px;font-weight:700';box.append(c);
     }else{
@@ -275,24 +298,35 @@ async function sampleSinglePhoto(file){
     const c=document.createElement('canvas'),scale=Math.min(1,900/Math.max(img.naturalWidth,img.naturalHeight));
     c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));
     const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height);
-    // Center sample; user can refine via manual color correction.
-    const original=quickCanvas;
-    const rad=Math.max(7,Math.floor(Math.min(c.width,c.height)*.13));
+    // Sample a tight center patch to reduce the influence of background,
+    // and preserve pale pixels rather than discarding whites as highlights.
+    const rad=Math.max(5,Math.floor(Math.min(c.width,c.height)*.105));
     const cx=Math.floor(c.width/2),cy=Math.floor(c.height/2);
-    const data=ctx.getImageData(Math.max(0,cx-rad),Math.max(0,cy-rad),Math.min(c.width,cx+rad)-Math.max(0,cx-rad),Math.min(c.height,cy+rad)-Math.max(0,cy-rad)).data;
-    const groups=new Map();
+    const left=Math.max(0,cx-rad),top=Math.max(0,cy-rad);
+    const data=ctx.getImageData(left,top,Math.min(c.width,cx+rad)-left,Math.min(c.height,cy+rad)-top).data;
+    const pixels=[];
     for(let i=0;i<data.length;i+=4){
-      const r=data[i],g=data[i+1],b=data[i+2],hsl=rgbToHsl(r,g,b);
-      if(hsl.l<.06||hsl.l>.96)continue;
-      const key=hsl.s<.11?'neutral':Math.floor(hsl.h/15);
-      if(!groups.has(key))groups.set(key,[]);
-      groups.get(key).push([r,g,b]);
+      const r=data[i],g=data[i+1],b=data[i+2];
+      if(Math.max(r,g,b)<18)continue;
+      const color=classify(r,g,b);
+      pixels.push({r,g,b,color});
     }
-    if(!groups.size)throw new Error('No puedo leer los colores de esta foto');
-    const group=[...groups.values()].sort((a,b)=>b.length-a.length)[0];
-    const med=k=>group.map(a=>a[k]).sort((a,b)=>a-b)[Math.floor(group.length/2)];
-    const r=med(0),g=med(1),b=med(2);
-    return {point:{...classify(r,g,b),hex:hex(r,g,b)},src:c.toDataURL('image/jpeg',.72)};
+    if(!pixels.length)throw new Error('No puedo leer los colores de esta foto');
+    // Prefer consistent chromatic pixels when they represent a meaningful
+    // portion of the garment; otherwise retain white and grey faithfully.
+    const chromatic=pixels.filter(p=>!['Blanco','Gris','Gris claro','Gris oscuro','Negro'].includes(p.color.name));
+    const chosen=chromatic.length>=pixels.length*.16?chromatic:pixels;
+    const families=new Map();
+    for(const p of chosen){
+      const key=p.color.name;
+      if(!families.has(key))families.set(key,[]);
+      families.get(key).push(p);
+    }
+    const family=[...families.values()].sort((a,b)=>b.length-a.length)[0];
+    const median=k=>family.map(p=>p[k]).sort((a,b)=>a-b)[Math.floor(family.length/2)];
+    const r=median('r'),g=median('g'),b=median('b');
+    const point={...classify(r,g,b),hex:hex(r,g,b)};
+    return {point,src:c.toDataURL('image/jpeg',.8)};
   }finally{URL.revokeObjectURL(url)}
 }
 for(const [inputId,idx] of [['slotTopInput',0],['slotBottomInput',1],['slotShoesInput',2]]){
@@ -308,10 +342,10 @@ for(const [inputId,idx] of [['slotTopInput',0],['slotBottomInput',1],['slotShoes
       quickPoints[1]=slotPhotos[1]?.point||null;
       quickPoints[2]=slotPhotos[2]?.point||null;
       quickStep=quickPoints[0]?quickPoints[1]?quickPoints[2]?3:2:1:0;
-      quickStage();quickShow();renderSlotPreviews();
+      quickStage();quickShow();renderSlotPreviews();updateWizardNext();
       $('slotStatus').textContent=quickPoints[0]&&quickPoints[1]?
         '¡Listo! Comprueba los colores detectados y el resultado de tu conjunto.':
-        'Foto asignada a '+slotNames[idx].toLowerCase()+'. Añade la otra prenda para comparar.';
+        '✓ Foto de '+slotNames[idx].toLowerCase()+' guardada temporalmente en este análisis. Ahora haz la siguiente foto.';
     }catch(err){$('slotStatus').textContent='No se pudo analizar: '+err.message}
     finally{el.value=''}
   });
