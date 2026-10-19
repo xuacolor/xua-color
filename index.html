@@ -11,8 +11,24 @@
 <label for="quickInput" class="camera-label wide quick-camera" style="cursor:pointer">📷 Hacer foto de mi conjunto</label>
 <input id="quickInput" type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0" aria-label="Fotografiar conjunto completo">
 <div class="hint-box">Para mejorar la precisión, usa luz natural, sin filtros y con las prendas visibles. El reconocimiento automático funciona mejor en fotos de cuerpo entero. Si falla, puedes tocar las prendas manualmente.</div>
-<button id="quickAuto" class="wide" type="button" disabled style="margin-top:12px">✨ Reconocer prendas automáticamente</button>
+<button id="quickAuto" class="wide" type="button" disabled style="margin-top:12px">✨ Estimar prendas en foto de cuerpo entero</button>
 <p id="quickAutoStatus" class="tiny muted" role="status">Haz una foto de cuerpo entero para activar el reconocimiento automático.</p>
+<div class="card" style="margin-top:16px;padding:14px;background:#f7f7f5">
+<h2 style="font-size:19px;margin-top:0">O fotografía cada prenda por separado</h2>
+<p class="muted">Haz una foto de la camiseta y otra del pantalón. Cada foto se asignará a su lugar correcto.</p>
+<div class="quick-actions">
+<label class="camera-label" for="slotTopInput" style="flex:1;cursor:pointer;padding:13px;text-align:center">📷 Camiseta / arriba</label>
+<label class="camera-label" for="slotBottomInput" style="flex:1;cursor:pointer;padding:13px;text-align:center">📷 Pantalón / abajo</label>
+</div>
+<div class="quick-actions" style="margin-top:8px">
+<label class="camera-label" for="slotShoesInput" style="flex:1;cursor:pointer;padding:11px;text-align:center">👟 Calzado (opcional)</label>
+</div>
+<input id="slotTopInput" type="file" accept="image/*" capture="environment" hidden>
+<input id="slotBottomInput" type="file" accept="image/*" capture="environment" hidden>
+<input id="slotShoesInput" type="file" accept="image/*" capture="environment" hidden>
+<div id="slotPreviews" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px"></div>
+<p id="slotStatus" class="tiny muted" role="status">Las fotos se procesan en el móvil y no se suben a XUA COLOR.</p>
+</div>
 <div class="quick-steps" id="quickSteps">
 <div class="quick-step active" id="quickStep0">1. Parte de arriba<small>Toca la camiseta</small></div>
 <div class="quick-step" id="quickStep1">2. Parte de abajo<small>Toca el pantalón</small></div>
@@ -137,7 +153,7 @@ photo.addEventListener('change',()=>{const f=photo.files&&photo.files[0];if(!f)r
   }
   sample(x,y);
 });
-$('save').addEventListener('click',()=>{if(!current)return;const name=$('garmentName').value.trim()||$('kind').value;items.push({...current,colorName:current.name,id:Date.now()+Math.random(),name,kind:$('kind').value});persist();$('detectMsg').textContent='¡Prenda guardada! Ya puedes combinarla desde la pestaña «Combinar».';$('garmentName').value='';render()});function label(item){return item.name+' · '+item.nameColor}function render(){let box=$('wardrobeItems');box.replaceChildren();$('empty').style.display=items.length?'none':'block';for(const it of items){let div=document.createElement('div');div.className='item';let sw=document.createElement('div');sw.className='swatch';sw.style.background=it.hex;let title=document.createElement('strong');title.textContent=it.name;let desc=document.createElement('div');desc.className='muted tiny';desc.textContent=it.nameColor||it.color||it.nameDetected||it.detectedName||it.colorName||it.colour||it.nameLabel||it.hueName||it.originalColor||it.colorText||it.name;let actual=document.createElement('div');actual.className='tiny';actual.textContent=it.colorLabel||it.colorName||it.detected||it.hueLabel||it.shadeName||it.nameOfColor||it.cname||it.hex;let btn=document.createElement('button');btn.className='secondary';btn.textContent='Eliminar';btn.addEventListener('click',()=>{items=items.filter(x=>x.id!==it.id);persist();render()});div.append(sw,title,document.createTextNode(it.kind+' · '+it.tone),document.createElement('br'),document.createTextNode('Color: '+(it.colorName||it.detected||it.hex)),btn);box.append(div)}for(const id of ['first','second']){const sel=$(id),previous=sel.value;sel.replaceChildren();for(const it of items){let opt=document.createElement('option');opt.value=it.id;opt.textContent=it.name+' ('+(it.colorName||it.hex)+')';sel.append(opt)}if(items.some(it=>String(it.id)===previous))sel.value=previous}if(items.length>1&&!$('second').value)$('second').selectedIndex=1;const third=$('third'),prev=third.value;third.replaceChildren();let blank=document.createElement('option');blank.value='';blank.textContent='Sin tercera prenda';third.append(blank);for(const it of items){let opt=document.createElement('option');opt.value=it.id;opt.textContent=it.name+' ('+(it.colorName||it.hex)+')';third.append(opt)}if(items.some(it=>String(it.id)===prev))third.value=prev;renderOutfit()}function evaluate(a,b){let ha=a.h,hb=b.h,d=Math.abs(ha-hb);d=Math.min(d,360-d);if(a.neutral&&b.neutral)return['Sí, combinan','Dos tonos neutros crean un conjunto equilibrado y fácil de llevar.'];if(a.neutral||b.neutral)return['Sí, combinan','Un color neutro ayuda a equilibrar el otro tono.'];if(d<30)return['Sí, combinan','Son tonos cercanos: producen un conjunto armónico.'];if(d>145&&d<205)return['Combinación con contraste','Son tonos opuestos: pueden quedar bien si uno es el protagonista y el otro es discreto.'];if(d>=30&&d<75)return['Combinación suave','Son colores relativamente próximos. Suele funcionar si las intensidades son parecidas.'];return['Conviene revisarla','La combinación puede funcionar, pero prueba a introducir un color neutro para equilibrarla.']}function safeColor(v){return /^#[0-9a-f]{6}$/i.test(v||'')?v:'#c5cbd1'}
+$('save').addEventListener('click',()=>{if(!current)return;const name=$('garmentName').value.trim()||$('kind').value;items.push({...current,colorName:current.name,id:Date.now()+Math.random(),name,kind:$('kind').value});persist();$('detectMsg').textContent='¡Prenda guardada! Ya puedes combinarla desde la pestaña «Combinar».';$('garmentName').value='';render()});function label(item){return item.name+' · '+item.nameColor}function render(){let box=$('wardrobeItems');box.replaceChildren();$('empty').style.display=items.length?'none':'block';for(const it of items){let div=document.createElement('div');div.className='item';let sw=document.createElement('div');sw.className='swatch';sw.style.background=it.hex;let title=document.createElement('strong');title.textContent=it.name;let desc=document.createElement('div');desc.className='muted tiny';desc.textContent=it.nameColor||it.color||it.nameDetected||it.detectedName||it.colorName||it.colour||it.nameLabel||it.hueName||it.originalColor||it.colorText||it.name;let actual=document.createElement('div');actual.className='tiny';actual.textContent=it.colorLabel||it.colorName||it.detected||it.hueLabel||it.shadeName||it.nameOfColor||it.cname||it.hex;let btn=document.createElement('button');btn.className='secondary';btn.textContent='Eliminar';btn.addEventListener('click',()=>{items=items.filter(x=>x.id!==it.id);persist();render()});div.append(sw,title,document.createTextNode(it.kind+' · '+it.tone),document.createElement('br'),document.createTextNode('Color: '+(it.colorName||it.detected||it.hex)),btn);box.append(div)}for(const id of ['first','second']){const sel=$(id),previous=sel.value;sel.replaceChildren();for(const it of items){const role=(it.kind||'').toLowerCase();if(id==='first'&&(/pantal|zapato|calzado|falda/.test(role)))continue;if(id==='second'&&(/camis|camisa|sudadera|chaqueta|zapato|calzado/.test(role)))continue;let opt=document.createElement('option');opt.value=it.id;opt.textContent=it.name+' ('+(it.colorName||it.hex)+')';sel.append(opt)}if(items.some(it=>String(it.id)===previous))sel.value=previous}if(items.length>1&&!$('second').value)$('second').selectedIndex=1;const third=$('third'),prev=third.value;third.replaceChildren();let blank=document.createElement('option');blank.value='';blank.textContent='Sin tercera prenda';third.append(blank);for(const it of items){let opt=document.createElement('option');opt.value=it.id;opt.textContent=it.name+' ('+(it.colorName||it.hex)+')';third.append(opt)}if(items.some(it=>String(it.id)===prev))third.value=prev;renderOutfit()}function evaluate(a,b){let ha=a.h,hb=b.h,d=Math.abs(ha-hb);d=Math.min(d,360-d);if(a.neutral&&b.neutral)return['Sí, combinan','Dos tonos neutros crean un conjunto equilibrado y fácil de llevar.'];if(a.neutral||b.neutral)return['Sí, combinan','Un color neutro ayuda a equilibrar el otro tono.'];if(d<30)return['Sí, combinan','Son tonos cercanos: producen un conjunto armónico.'];if(d>145&&d<205)return['Combinación con contraste','Son tonos opuestos: pueden quedar bien si uno es el protagonista y el otro es discreto.'];if(d>=30&&d<75)return['Combinación suave','Son colores relativamente próximos. Suele funcionar si las intensidades son parecidas.'];return['Conviene revisarla','La combinación puede funcionar, pero prueba a introducir un color neutro para equilibrarla.']}function safeColor(v){return /^#[0-9a-f]{6}$/i.test(v||'')?v:'#c5cbd1'}
 function renderOutfit(){const a=items.find(x=>String(x.id)===$('first').value),b=items.find(x=>String(x.id)===$('second').value),c=items.find(x=>String(x.id)===$('third').value);let stage=$('outfitIllustration'),legend=$('outfitLegend');if(!stage||!legend)return;legend.replaceChildren();if(!a||!b){stage.innerHTML='<div class="outfit-empty"><strong>Tu conjunto aparecerá aquí</strong>Guarda al menos dos prendas en «Detectar» para empezar.</div>';return}let shirt=safeColor(a.hex),pants=safeColor(b.hex),shoes=safeColor(c?.hex||'#f3f0e9');stage.innerHTML=`<svg viewBox="0 0 300 350" role="img" aria-label="Ilustración de camiseta, pantalón y zapatillas con los colores seleccionados" xmlns="http://www.w3.org/2000/svg"><ellipse cx="150" cy="332" rx="102" ry="10" fill="#293b4b" opacity=".12"/><path d="M112 26 L130 16 Q150 31 170 16 L188 26 L224 63 L199 92 L180 75 L180 156 L120 156 L120 75 L101 92 L76 63 Z" fill="${shirt}" stroke="#263846" stroke-width="2.5" stroke-linejoin="round"/><path d="M130 16 Q150 48 170 16" fill="none" stroke="#263846" stroke-width="2.5"/><path d="M120 149 L180 149 L189 265 L157 267 L150 193 L143 267 L111 265 Z" fill="${pants}" stroke="#263846" stroke-width="2.5" stroke-linejoin="round"/><path d="M111 265 L141 266 L141 289 Q121 299 95 294 L84 287 Q90 274 111 265 Z" fill="${shoes}" stroke="#263846" stroke-width="2.5"/><path d="M159 266 L189 265 Q211 274 216 287 L204 294 Q179 299 159 289 Z" fill="${shoes}" stroke="#263846" stroke-width="2.5"/><path d="M86 287 Q111 297 141 287 M159 287 Q189 297 214 287" stroke="#263846" stroke-width="2" fill="none"/><path d="M126 153 L174 153" stroke="#263846" opacity=".3" stroke-width="2"/></svg>`;for(const [label,it,color] of [['Arriba',a,shirt],['Abajo',b,pants],['Calzado',c,shoes]]){let chip=document.createElement('span');chip.className='outfit-chip';let dot=document.createElement('i');dot.className='outfit-dot';dot.style.background=color;chip.append(dot,document.createTextNode(label+': '+(it?.colorName||it?.name||'Neutro')));legend.append(chip)}}
 for(const id of ['first','second','third'])$(id).addEventListener('change',renderOutfit);
 $('check').addEventListener('click',()=>{let a=items.find(x=>String(x.id)===$('first').value),b=items.find(x=>String(x.id)===$('second').value),out=$('pairResult');out.replaceChildren();if(!a||!b||a.id===b.id){out.textContent='Guarda y selecciona dos prendas diferentes.';return}let [heading,explain]=evaluate(a,b);let pair=document.createElement('div');pair.className='pair';for(const it of [a,b]){let sw=document.createElement('div');sw.className='swatch';sw.style.background=it.hex;sw.setAttribute('aria-label',it.name+' '+(it.colorName||it.hex));pair.append(sw)}let h=document.createElement('h2');h.textContent=heading;let p=document.createElement('p');p.textContent=explain;let note=document.createElement('p');note.className='muted tiny';note.textContent='Sugerencia orientativa: el tejido, estampado, iluminación y estilo también influyen.';out.append(pair,h,p,note);let c=items.find(x=>String(x.id)===$('third').value);if(c&&c.id!==a.id&&c.id!==b.id){let [title,reason]=evaluate(b,c),extra=document.createElement('p');extra.textContent='Calzado: '+title+'. '+reason;out.append(extra)}else if(c){let extra=document.createElement('p');extra.textContent='Para un conjunto de tres prendas diferentes, selecciona otra prenda en el tercer campo.';out.append(extra)}});// Análisis rápido de un look: el usuario selecciona 2-3 puntos de la misma foto.
@@ -147,7 +163,7 @@ const quickCanvas=document.createElement('canvas');
 function quickStage(){
   for(let i=0;i<3;i++){
     $('quickStep'+i).classList.toggle('active',quickStep===i);
-    $('quickStep'+i).classList.toggle('done',i<quickPoints.length);
+    $('quickStep'+i).classList.toggle('done',Boolean(quickPoints[i]));
   }
 }
 function quickSample(x,y){
@@ -173,7 +189,7 @@ const quickColorChoices=['Azul','Azul marino','Celeste','Turquesa','Marrón','Be
 const quickPresets={'Azul':'#2861aa','Azul marino':'#192c56','Celeste':'#a7d6ee','Turquesa':'#31a9ae','Marrón':'#775038','Beige':'#d5b996','Crema':'#f4e8d0','Negro':'#242424','Blanco':'#f7f7f5','Gris':'#858a90','Gris claro':'#c9ced1','Gris oscuro':'#444a4e','Verde':'#438557','Verde oliva':'#77784b','Rojo':'#bb3c42','Rosa':'#e3a1b5','Naranja':'#dc8343','Amarillo':'#edcb51','Morado':'#795b9a'};
 function quickEdit(){
  const holder=$('quickEditRows');holder.replaceChildren();
- $('quickEdit').classList.toggle('hide',quickPoints.length===0);
+ $('quickEdit').classList.toggle('hide',quickPoints.filter(Boolean).length===0);
  ['Camiseta','Pantalón','Calzado'].forEach((label,i)=>{
    if(!quickPoints[i])return;
    const row=document.createElement('div');row.className='quick-edit-row';
@@ -198,9 +214,9 @@ function quickEdit(){
 }
 function quickShow(refreshEditors=true){
   if(refreshEditors)quickEdit();
-  $('quickSaveWrap').style.display=quickPoints.length>=2?'flex':'none';
+  $('quickSaveWrap').style.display=(quickPoints[0]&&quickPoints[1])?'flex':'none';
   const target=$('quickResult');target.replaceChildren();
-  if(quickPoints.length<2){target.classList.add('hide');return}
+  if(!quickPoints[0]||!quickPoints[1]){target.classList.add('hide');return}
   target.classList.remove('hide');
   const [a,b,c]=quickPoints;
   const evaluations=[evaluate(a,b)];
@@ -227,6 +243,80 @@ function quickShow(refreshEditors=true){
   target.append(retry);
 }
 
+
+// Separate garment photos. Each input is bound to an explicit clothing role.
+const slotPhotos=[null,null,null];
+const slotNames=['Parte de arriba','Pantalón','Calzado'];
+function renderSlotPreviews(){
+  const holder=$('slotPreviews');holder.replaceChildren();
+  for(let i=0;i<3;i++){
+    const box=document.createElement('div');
+    box.style.cssText='border:1px solid #d5dadc;border-radius:12px;padding:7px;text-align:center;min-width:0;background:white';
+    const label=document.createElement('strong');label.style.fontSize='12px';label.textContent=slotNames[i];
+    box.append(label);
+    if(slotPhotos[i]){
+      const img=document.createElement('img');img.src=slotPhotos[i].src;img.alt='Foto de '+slotNames[i];
+      img.style.cssText='width:100%;height:110px;object-fit:contain;display:block;margin:5px 0';
+      box.append(img);
+      const c=document.createElement('div');c.textContent=slotPhotos[i].point.name+' · '+slotPhotos[i].point.tone;
+      c.style.cssText='font-size:11px;font-weight:700';box.append(c);
+    }else{
+      const empty=document.createElement('p');empty.textContent='Sin foto';empty.style.cssText='font-size:11px;color:#667;margin:16px 0';box.append(empty);
+    }
+    holder.append(box);
+  }
+}
+async function sampleSinglePhoto(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((resolve,reject)=>{
+      const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=url;
+    });
+    const c=document.createElement('canvas'),scale=Math.min(1,900/Math.max(img.naturalWidth,img.naturalHeight));
+    c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height);
+    // Center sample; user can refine via manual color correction.
+    const original=quickCanvas;
+    const rad=Math.max(7,Math.floor(Math.min(c.width,c.height)*.13));
+    const cx=Math.floor(c.width/2),cy=Math.floor(c.height/2);
+    const data=ctx.getImageData(Math.max(0,cx-rad),Math.max(0,cy-rad),Math.min(c.width,cx+rad)-Math.max(0,cx-rad),Math.min(c.height,cy+rad)-Math.max(0,cy-rad)).data;
+    const groups=new Map();
+    for(let i=0;i<data.length;i+=4){
+      const r=data[i],g=data[i+1],b=data[i+2],hsl=rgbToHsl(r,g,b);
+      if(hsl.l<.06||hsl.l>.96)continue;
+      const key=hsl.s<.11?'neutral':Math.floor(hsl.h/15);
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push([r,g,b]);
+    }
+    if(!groups.size)throw new Error('No puedo leer los colores de esta foto');
+    const group=[...groups.values()].sort((a,b)=>b.length-a.length)[0];
+    const med=k=>group.map(a=>a[k]).sort((a,b)=>a-b)[Math.floor(group.length/2)];
+    const r=med(0),g=med(1),b=med(2);
+    return {point:{...classify(r,g,b),hex:hex(r,g,b)},src:c.toDataURL('image/jpeg',.72)};
+  }finally{URL.revokeObjectURL(url)}
+}
+for(const [inputId,idx] of [['slotTopInput',0],['slotBottomInput',1],['slotShoesInput',2]]){
+  $(inputId).addEventListener('change',async()=>{
+    const el=$(inputId),file=el.files?.[0];if(!file)return;
+    $('slotStatus').textContent='Analizando '+slotNames[idx].toLowerCase()+'…';
+    try{
+      slotPhotos[idx]=await sampleSinglePhoto(file);
+      $('quickSave').disabled=false;
+      $('quickSave').textContent='＋ Guardar prendas en mi armario';
+      // Keep explicit positions; never shift a pant into shirt slot.
+      quickPoints[0]=slotPhotos[0]?.point||null;
+      quickPoints[1]=slotPhotos[1]?.point||null;
+      quickPoints[2]=slotPhotos[2]?.point||null;
+      quickStep=quickPoints[0]?quickPoints[1]?quickPoints[2]?3:2:1:0;
+      quickStage();quickShow();renderSlotPreviews();
+      $('slotStatus').textContent=quickPoints[0]&&quickPoints[1]?
+        '¡Listo! Comprueba los colores detectados y el resultado de tu conjunto.':
+        'Foto asignada a '+slotNames[idx].toLowerCase()+'. Añade la otra prenda para comparar.';
+    }catch(err){$('slotStatus').textContent='No se pudo analizar: '+err.message}
+    finally{el.value=''}
+  });
+}
+renderSlotPreviews();
 // Beta: MediaPipe Pose locates anatomical regions; sampling colour in those
 // regions is not a garment segmentation model. No photo is uploaded by our code.
 let poseEngine=null,poseLoading=null;
@@ -283,23 +373,36 @@ $('quickAuto').addEventListener('click',async()=>{
     });
     const lm=result.poseLandmarks;
     if(!lm)throw new Error('No encuentro una persona de cuerpo entero. Prueba con una foto más alejada y bien iluminada.');
-    const visible=i=>lm[i]&&lm[i].visibility>.48;
-    if(![11,12,23,24].every(visible))throw new Error('Necesito ver hombros y caderas para reconocer las zonas de ropa.');
-    const chestL=mid(lm[11],lm[23],.43),chestR=mid(lm[12],lm[24],.43);
-    const shirt=sampleRegion([chestL,chestR,mid(chestL,chestR),mid(lm[11],lm[23],.6),mid(lm[12],lm[24],.6)]);
+    const visible=(i,threshold=.25)=>lm[i]&&lm[i].visibility>threshold;
+    if(![11,12,23,24].every(i=>visible(i,.35)))throw new Error('Necesito ver los hombros y la cintura. Aleja el móvil para que aparezca el cuerpo entero.');
+    const chestL=mid(lm[11],lm[23],.42),chestR=mid(lm[12],lm[24],.42);
+    const shirt=sampleRegion([chestL,chestR,mid(chestL,chestR),mid(lm[11],lm[23],.60),mid(lm[12],lm[24],.60)]);
+    // Try hips-to-knees first, then hips-to-ankles when knees are occluded.
+    const leftLeg=visible(25)?lm[25]:(visible(27)?lm[27]:null);
+    const rightLeg=visible(26)?lm[26]:(visible(28)?lm[28]:null);
     let trousers=null;
-    if([25,26].every(visible)){
-      const legL=mid(lm[23],lm[25],.52),legR=mid(lm[24],lm[26],.52);
-      trousers=sampleRegion([legL,legR,mid(lm[23],lm[25],.3),mid(lm[24],lm[26],.3)]);
+    if(leftLeg&&rightLeg){
+      trousers=sampleRegion([mid(lm[23],leftLeg,.34),mid(lm[24],rightLeg,.34),mid(lm[23],leftLeg,.56),mid(lm[24],rightLeg,.56)]);
+    } else if(leftLeg){
+      trousers=sampleRegion([mid(lm[23],leftLeg,.34),mid(lm[23],leftLeg,.55)]);
+    } else if(rightLeg){
+      trousers=sampleRegion([mid(lm[24],rightLeg,.34),mid(lm[24],rightLeg,.55)]);
     }
-    if(!shirt||!trousers)throw new Error('No puedo distinguir bien la camiseta y el pantalón. Necesito ver las piernas.');
-    const shoes=[27,28,31,32].filter(visible).map(i=>lm[i]);
+    const shoes=[31,32,27,28].filter(i=>visible(i,.3)).map(i=>lm[i]);
     const footwear=shoes.length>=2?sampleRegion(shoes):null;
-    quickPoints=[shirt,trousers,...(footwear?[footwear]:[])];
-    quickStep=3;quickStage();quickShow();
-    $('quickStatus').textContent='Reconocimiento automático completado. Revisa los colores antes de confiar en el resultado.';
-    status.textContent='Zonas localizadas automáticamente mediante estimación de postura. Corrige cualquier color incorrecto en «Ajustar colores detectados».';
-    $('quickResult').scrollIntoView({behavior:'smooth',block:'nearest'});
+    if(!shirt)throw new Error('No he podido medir la camiseta. Puedes tocarla directamente en la foto.');
+    quickPoints=[shirt];
+    if(trousers){quickPoints.push(trousers);if(footwear)quickPoints.push(footwear);quickStep=3;}
+    else {quickStep=1;}
+    quickStage();quickShow();
+    if(trousers){
+      $('quickStatus').textContent='He encontrado camiseta y pantalón'+(footwear?' y calzado':'')+'. Comprueba los colores y corrige los que no coincidan.';
+      status.textContent='Reconocimiento aproximado por zonas corporales. Revisa las tonalidades antes de guardar.';
+    } else {
+      $('quickStatus').textContent='Camiseta detectada. Ahora toca el pantalón en la fotografía para completar el conjunto.';
+      status.textContent='No veo bien las piernas; toca la zona del pantalón para completar la detección.';
+    }
+    (trousers?$('quickResult'):$('quickPreview')).scrollIntoView({behavior:'smooth',block:'nearest'});
   }catch(err){
     status.textContent='No se pudo completar el reconocimiento: '+err.message+' Puedes tocar las prendas manualmente sobre la foto.';
   }finally{
@@ -314,7 +417,7 @@ quickInput.addEventListener('change',()=>{
     quickCanvas.width=Math.round(quickPreview.naturalWidth*scale);
     quickCanvas.height=Math.round(quickPreview.naturalHeight*scale);
     quickCanvas.getContext('2d').drawImage(quickPreview,0,0,quickCanvas.width,quickCanvas.height);
-    quickLoaded=true;$('quickAuto').disabled=false;$('quickAuto').textContent='✨ Reconocer prendas automáticamente';$('quickAutoStatus').textContent='Pulsa para localizar automáticamente camiseta, pantalón y, si se ven, zapatos.';quickPoints=[];quickStep=0;$('quickSave').disabled=false;$('quickSave').textContent='＋ Guardar prendas en mi armario';quickStage();quickShow();
+    quickLoaded=true;$('quickAuto').disabled=false;$('quickAuto').textContent='✨ Estimar prendas en foto de cuerpo entero';$('quickAutoStatus').textContent='Pulsa para localizar automáticamente camiseta, pantalón y, si se ven, zapatos.';quickPoints=[];quickStep=0;$('quickSave').disabled=false;$('quickSave').textContent='＋ Guardar prendas en mi armario';quickStage();quickShow();
     $('quickStatus').textContent='Paso 1: toca una zona lisa de la camiseta o parte de arriba.';
     URL.revokeObjectURL(url);quickInput.value='';
   };
@@ -342,12 +445,12 @@ $('quickBack').addEventListener('click',()=>{
   $('quickStatus').textContent='Toca de nuevo la '+(['parte de arriba','parte de abajo','zona de calzado'][quickStep]||'prenda')+'.';
 });
 $('quickSkip').addEventListener('click',()=>{
-  if(quickPoints.length<2){$('quickStatus').textContent='Selecciona primero camiseta y pantalón.';return}
+  if(!quickPoints[0]||!quickPoints[1]){$('quickStatus').textContent='Selecciona primero camiseta y pantalón.';return}
   quickPoints=quickPoints.slice(0,2);quickStep=3;quickStage();quickShow();
   $('quickStatus').textContent='Resultado del conjunto de dos prendas listo.';
 });
 $('quickSave').addEventListener('click',()=>{
-  if(quickPoints.length<2)return;
+  if(!quickPoints[0]||!quickPoints[1])return;
   const labels=['Parte de arriba','Pantalón','Calzado'];
   quickPoints.forEach((point,i)=>{
     items.push({...point,colorName:point.name,id:Date.now()+i+Math.random(),name:labels[i]+' · '+point.name,kind:labels[i]});
